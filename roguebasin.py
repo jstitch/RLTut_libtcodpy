@@ -8,6 +8,7 @@
 # ---
 
 import math
+import textwrap
 import libtcodpy as libtcod
 
 
@@ -39,9 +40,14 @@ FOV_LIGHT_WALLS = True
 TORCH_RADIUS = 10
 
 # GUI
+# bottom panel
 BAR_WIDTH = 20
 PANEL_HEIGHT = 7
 PANEL_Y = SCREEN_HEIGHT - PANEL_HEIGHT
+# message bar
+MSG_X = BAR_WIDTH + 2
+MSG_WIDTH = SCREEN_WIDTH - BAR_WIDTH - 2
+MSG_HEIGHT = PANEL_HEIGHT - 1
 
 # console refresh rate
 LIMIT_FPS = 20
@@ -147,10 +153,10 @@ class Fighter:
 
         if damage > 0:
             # make the target take some damage
-            print self.owner.name.capitalize() + ' attacks ' + target.name + ' for ' + str(damage) + ' hit points.'
+            message(self.owner.name.capitalize() + ' attacks ' + target.name + ' for ' + str(damage) + ' hit points.')
             target.fighter.take_damage(damage)
         else:
-            print self.owner.name.capitalize() + ' attacks ' + target.name + ' but it has no effect!'
+            message(self.owner.name.capitalize() + ' attacks ' + target.name + ' but it has no effect!')
 
 # Basic behaviour for any monster AI
 class BasicMonster:
@@ -201,12 +207,13 @@ class Rect:
 # FUNCS
 # ---
 
+# GAME
 # Handle player death
 def player_death(player):
     # the game ended!
     global game_state
 
-    print 'You died!'
+    message('You died!', libtcod.red)
     game_state = 'dead'
 
     # for added effect, transform the player into a corpse!
@@ -217,7 +224,7 @@ def player_death(player):
 def monster_death(monster):
     # transform it into a nasty corpse! it doesn't block, can't be
     # attacked and doesn't move
-    print monster.name.capitalize() + ' is dead!'
+    message(monster.name.capitalize() + ' is dead!', libtcod.orange)
     monster.char = '%'
     monster.color = libtcod.dark_red
     monster.blocks = False
@@ -225,33 +232,6 @@ def monster_death(monster):
     monster.ai = None
     monster.name = 'remains of ' + monster.name
     monster.send_to_back()
-
-# Handle key input
-def handle_keys():
-    global game_state
-
-#    key = libtcod.console_check_for_keypress() # real-time
-    key = libtcod.console_wait_for_keypress(True) # turn-based
-
-    if key.vk == libtcod.KEY_ENTER and libtcod.KEY_ALT:
-        # Alt+Enter: toggle fullscreen
-        libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen())
-
-    elif key.vk == libtcod.KEY_ESCAPE:
-        return 'exit' # exit game
-
-    # movement keys
-    if game_state == 'playing':
-        if libtcod.console_is_key_pressed(libtcod.KEY_UP):
-            player_move_or_attack(0, -1)
-        elif libtcod.console_is_key_pressed(libtcod.KEY_DOWN):
-            player_move_or_attack(0, 1)
-        elif libtcod.console_is_key_pressed(libtcod.KEY_LEFT):
-            player_move_or_attack(-1, 0)
-        elif libtcod.console_is_key_pressed(libtcod.KEY_RIGHT):
-            player_move_or_attack(1, 0)
-        else:
-            return 'didnt-take-turn'
 
 # The player takes an action such as move or attack
 def player_move_or_attack(dx, dy):
@@ -274,6 +254,22 @@ def player_move_or_attack(dx, dy):
     else:
         player.move(dx, dy)
         fov_recompute = True
+
+# MAP & OBJECTS
+# Test if tile is blocked
+def is_blocked(x, y):
+    global map, objects
+    
+    # first test the map tile
+    if map[x][y].blocked:
+        return True
+
+    # now check for any blocking objects
+    for object in objects:
+        if object.blocks and object.x == x and object.y == y:
+            return True
+
+    return False
 
 # Place objects in some room
 def place_objects(room):
@@ -399,21 +395,49 @@ def create_v_tunnel(y1, y2, x):
         map[x][y].blocked = False
         map[x][y].block_sight = False
 
-# Test if tile is blocked
-def is_blocked(x, y):
-    global map, objects
-    
-    # first test the map tile
-    if map[x][y].blocked:
-        return True
+# INPUT
+# Handle key input
+def handle_keys():
+    global game_state
 
-    # now check for any blocking objects
-    for object in objects:
-        if object.blocks and object.x == x and object.y == y:
-            return True
+#    key = libtcod.console_check_for_keypress() # real-time
+    key = libtcod.console_wait_for_keypress(True) # turn-based
 
-    return False
+    if key.vk == libtcod.KEY_ENTER and libtcod.KEY_ALT:
+        # Alt+Enter: toggle fullscreen
+        libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen())
 
+    elif key.vk == libtcod.KEY_ESCAPE:
+        return 'exit' # exit game
+
+    # movement keys
+    if game_state == 'playing':
+        if libtcod.console_is_key_pressed(libtcod.KEY_UP):
+            player_move_or_attack(0, -1)
+        elif libtcod.console_is_key_pressed(libtcod.KEY_DOWN):
+            player_move_or_attack(0, 1)
+        elif libtcod.console_is_key_pressed(libtcod.KEY_LEFT):
+            player_move_or_attack(-1, 0)
+        elif libtcod.console_is_key_pressed(libtcod.KEY_RIGHT):
+            player_move_or_attack(1, 0)
+        else:
+            return 'didnt-take-turn'
+
+# GUI
+# Add a message
+def message(new_msg, color = libtcod.white):
+    # split message if necessary, among multiple lines
+    new_msg_lines = textwrap.wrap(new_msg, MSG_WIDTH)
+
+    for line in new_msg_lines:
+        # if buffer is full, remove the first line to make room for the new one
+        if len(game_msgs) == MSG_HEIGHT:
+            del game_msgs[0]
+
+        # add the new line as a tuple, with the text and the color
+        game_msgs.append( (line, color) )
+
+# RENDERING
 # Render status bar
 def render_bar(x, y, total_width, name, value, maximum, bar_color, back_color):
     global panel
@@ -484,6 +508,13 @@ def render_all():
     libtcod.console_set_background_color(panel, libtcod.black)
     libtcod.console_clear(panel)
 
+    # print the game messages, one line at a time
+    y = 1
+    for (line, color) in game_msgs:
+        libtcod.console_set_foreground_color(panel, color)
+        libtcod.console_print_left(panel, MSG_X, y, libtcod.BKGND_NONE, line)
+        y += 1
+
     # show the player's stats
     render_bar(1, 1, BAR_WIDTH, 'HP', player.fighter.hp, player.fighter.max_hp,
                libtcod.light_red, libtcod.dark_red)
@@ -510,8 +541,11 @@ libtcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'python/libtcod tutorial'
 # Consoles
 # Off-screen main console
 con = libtcod.console_new(MAP_WIDTH, MAP_HEIGHT)
-# Status panel
+# Bottom panel
 panel = libtcod.console_new(SCREEN_WIDTH, PANEL_HEIGHT)
+
+# Messages list
+game_msgs = [] # tuples of (message str, color)
 
 # Player init
 fighter_component = Fighter(hp=30, defense=2, power=5, death_function=player_death)
@@ -540,6 +574,11 @@ player_action = None
 # ---
 # MAIN
 # ---
+
+# a warm welcoming message!
+message('Welcome stranger! Prepare to perish in the Tombs of the Ancient Kings.', libtcod.red)
+
+# main loop
 while not libtcod.console_is_window_closed():
     # draw
     render_all()
