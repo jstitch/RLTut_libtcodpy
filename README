@@ -1,0 +1,37 @@
+Roguebasin Roguelike Development Tutorial with Libtcod and Python
+
+Taken from:
+http://roguebasin.roguelikedevelopment.org/index.php/Complete_Roguelike_Tutorial,_using_python%2Blibtcod
+
+by Jotaf
+
+Each git commit goes along with some milestone reached in the tutorial
+(finishing a lesson, but also some other ones reached at half a lesson
+too). Therefore you can log and diff so as to look at the evolution of
+the game along with the tutorial.
+
+
+REQUIREMENTS
+------------
+
+- Python 2.7 (or 2.6 too)
+
+- libtcod library with Python support, downloadable at
+
+  http://doryen.eptalys.net/libtcod/download/
+
+Please use the version according to your system
+
+Change the libtcodpy.py, libtcod.so and libSDL.so files with the one
+you need according to your system and the instructions specified in
+the first day of the tutorial. Default version comes with files for
+Linux 32 bits version.
+
+
+Semi-official discussion thread at libtcod forum:
+
+http://doryen.eptalys.net/forum/index.php?topic=328.0
+
+
+The tutorial is under the BSD license
+http://roguebasin.roguelikedevelopment.org/index.php/Talk:Complete_Roguelike_Tutorial,_using_python%2Blibtcod#Copyright.2FCopyleft
