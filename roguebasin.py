@@ -1,6 +1,7 @@
 #!/usr/bin/python2
 
-# Roguebasin tutorial
+# Roguebasin Roguelike Development Tutorial with Libtcod and Python
+# http://roguebasin.roguelikedevelopment.org/index.php/Complete_Roguelike_Tutorial,_using_python%2Blibtcod
 
 # ---
 # Imports
@@ -22,7 +23,7 @@ SCREEN_HEIGHT = 50
 
 # map
 MAP_WIDTH = 80
-MAP_HEIGHT = 45
+MAP_HEIGHT = 43
 
 # rooms
 ROOM_MAX_SIZE = 10
@@ -36,6 +37,11 @@ MAX_ROOM_MONSTERS = 3
 FOV_ALGO = 0 # default FOV algorithm
 FOV_LIGHT_WALLS = True
 TORCH_RADIUS = 10
+
+# GUI
+BAR_WIDTH = 20
+PANEL_HEIGHT = 7
+PANEL_Y = SCREEN_HEIGHT - PANEL_HEIGHT
 
 # console refresh rate
 LIMIT_FPS = 20
@@ -408,6 +414,27 @@ def is_blocked(x, y):
 
     return False
 
+# Render status bar
+def render_bar(x, y, total_width, name, value, maximum, bar_color, back_color):
+    global panel
+    
+    # render a bar (HP, experience, etc). First calculate the width of the bar
+    bar_width = int(float(value) / maximum * total_width)
+
+    # render the background first
+    libtcod.console_set_background_color(panel, back_color)
+    libtcod.console_rect(panel, x, y, total_width, 1, False)
+
+    # now render the bar on top
+    libtcod.console_set_background_color(panel, bar_color)
+    if bar_width > 0:
+        libtcod.console_rect(panel, x, y, bar_width, 1, False)
+
+    # finally, some centered text with the values
+    libtcod.console_set_foreground_color(panel, libtcod.white)
+    libtcod.console_print_center(panel, x + total_width / 2, y, libtcod.BKGND_NONE,
+                                 name + ': ' + str(value) + '/' + str(maximum))
+
 # Render all
 def render_all():
     global color_light_wall, color_light_ground
@@ -450,13 +477,19 @@ def render_all():
             object.draw()
     player.draw()
 
-    # blit off-screen consoles to root one
-    libtcod.console_blit(con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0, 0, 0)
+    # blit off-screen console to root one
+    libtcod.console_blit(con, 0, 0, MAP_WIDTH, MAP_HEIGHT, 0, 0, 0)
+
+    # prepare to render the GUI panel
+    libtcod.console_set_background_color(panel, libtcod.black)
+    libtcod.console_clear(panel)
 
     # show the player's stats
-    libtcod.console_set_foreground_color(con, libtcod.white)
-    libtcod.console_print_left(0, 1, SCREEN_HEIGHT - 2, libtcod.BKGND_NONE,
-                               'HP: ' + str(player.fighter.hp) + '/' + str(player.fighter.max_hp))
+    render_bar(1, 1, BAR_WIDTH, 'HP', player.fighter.hp, player.fighter.max_hp,
+               libtcod.light_red, libtcod.dark_red)
+
+    # blit the contents of "panel" to the root console
+    libtcod.console_blit(panel, 0, 0, SCREEN_WIDTH, PANEL_HEIGHT, 0, 0, PANEL_Y)
 
 
 # ---
@@ -468,13 +501,18 @@ libtcod.console_set_custom_font('arial12x12.png', libtcod.FONT_TYPE_GREYSCALE | 
 #libtcod.sys_set_fps(LIMIT_FPS)
 # init root screen
 libtcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'python/libtcod tutorial', False)
-# off-screen main console
-con = libtcod.console_new(SCREEN_WIDTH, SCREEN_HEIGHT)
 
 
 # ---
 # GLOBALS
 # ---
+
+# Consoles
+# Off-screen main console
+con = libtcod.console_new(MAP_WIDTH, MAP_HEIGHT)
+# Status panel
+panel = libtcod.console_new(SCREEN_WIDTH, PANEL_HEIGHT)
+
 # Player init
 fighter_component = Fighter(hp=30, defense=2, power=5, death_function=player_death)
 player = Object(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', 'player', libtcod.white, blocks=True,
