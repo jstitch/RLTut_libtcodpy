@@ -401,7 +401,7 @@ def handle_keys():
     global game_state
 
 #    key = libtcod.console_check_for_keypress() # real-time
-    key = libtcod.console_wait_for_keypress(True) # turn-based
+    key = libtcod.console_check_for_keypress(libtcod.KEY_PRESSED) # turn-based
 
     if key.vk == libtcod.KEY_ENTER and libtcod.KEY_ALT:
         # Alt+Enter: toggle fullscreen
@@ -412,16 +412,31 @@ def handle_keys():
 
     # movement keys
     if game_state == 'playing':
-        if libtcod.console_is_key_pressed(libtcod.KEY_UP):
+        if key.vk == libtcod.KEY_UP:
             player_move_or_attack(0, -1)
-        elif libtcod.console_is_key_pressed(libtcod.KEY_DOWN):
+        elif key.vk == libtcod.KEY_DOWN:
             player_move_or_attack(0, 1)
-        elif libtcod.console_is_key_pressed(libtcod.KEY_LEFT):
+        elif key.vk == libtcod.KEY_LEFT:
             player_move_or_attack(-1, 0)
-        elif libtcod.console_is_key_pressed(libtcod.KEY_RIGHT):
+        elif key.vk == libtcod.KEY_RIGHT:
             player_move_or_attack(1, 0)
         else:
             return 'didnt-take-turn'
+
+# Mouse look command
+def get_names_under_mouse():
+    global fov_map
+    
+    # return a string with the names of all objects under the mouse
+    mouse = libtcod.mouse_get_status()
+    (x, y) = (mouse.cx, mouse.cy)
+
+    # create list with names of all objects at the mouse's coordinates and in FOV
+    names = [obj.name for obj in objects
+             if obj.x == x and obj.y == y and libtcod.map_is_in_fov(fov_map, obj.x, obj.y)]
+
+    names = ', '.join(names) # join the names, separated by commas
+    return names.capitalize()
 
 # GUI
 # Add a message
@@ -519,6 +534,10 @@ def render_all():
     render_bar(1, 1, BAR_WIDTH, 'HP', player.fighter.hp, player.fighter.max_hp,
                libtcod.light_red, libtcod.dark_red)
 
+    # mouse look command
+    libtcod.console_set_foreground_color(panel, libtcod.light_gray)
+    libtcod.console_print_left(panel, 1, 0, libtcod.BKGND_NONE, get_names_under_mouse())
+
     # blit the contents of "panel" to the root console
     libtcod.console_blit(panel, 0, 0, SCREEN_WIDTH, PANEL_HEIGHT, 0, 0, PANEL_Y)
 
@@ -528,8 +547,8 @@ def render_all():
 # ---
 # init font
 libtcod.console_set_custom_font('arial12x12.png', libtcod.FONT_TYPE_GREYSCALE | libtcod.FONT_LAYOUT_TCOD)
-# for real-time RL
-#libtcod.sys_set_fps(LIMIT_FPS)
+# for real-time RL and for mouse integration in turn-based RL
+libtcod.sys_set_fps(LIMIT_FPS)
 # init root screen
 libtcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'python/libtcod tutorial', False)
 
