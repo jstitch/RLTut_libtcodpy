@@ -72,6 +72,7 @@ class Tile:
     # a tile of the map and its properties
     def __init__(self, blocked, block_sight = None):
         self.blocked = blocked
+        self.explored = False
 
         # by default, if a tile is blocked, it also blocks sight
         if block_sight is None: block_sight = blocked
@@ -223,7 +224,8 @@ def create_v_tunnel(y1, y2, x):
 def render_all():
     global color_light_wall, color_light_ground
     global color_dark_wall, color_dark_ground
-    global fov_map, fov_recompute, player
+    global fov_map, fov_recompute
+    global player, map
 
     # draw the map
     if fov_recompute:
@@ -238,12 +240,16 @@ def render_all():
                 wall = map[x][y].block_sight
                 if not visible:
                     # it's out of the player's FOV
-                    if wall:
-                        libtcod.console_set_back(con, x, y, color_dark_wall, libtcod.BKGND_SET )
-                    else:
-                        libtcod.console_set_back(con, x, y, color_dark_ground, libtcod.BKGND_SET )
+                    # if it's not visible right now, the player can only see it if it's explored
+                    if map[x][y].explored:
+                        if wall:
+                            libtcod.console_set_back(con, x, y, color_dark_wall, libtcod.BKGND_SET )
+                        else:
+                            libtcod.console_set_back(con, x, y, color_dark_ground, libtcod.BKGND_SET )
                 else:
                     # it's visible
+                    # explore the tile since it is visible right now
+                    map[x][y].explored = True
                     if wall:
                         libtcod.console_set_back(con, x, y, color_light_wall, libtcod.BKGND_SET )
                     else:
