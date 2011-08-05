@@ -17,6 +17,9 @@ import libtcodpy as libtcod
 # CONSTS
 # ---
 
+# Extras
+OLD_SCHOOL_TILES = True
+
 # Screen
 SCREEN_WIDTH = 80
 SCREEN_HEIGHT = 50
@@ -117,7 +120,11 @@ class Object:
 
     def clear(self):
         # erase the character that represents this object
-        libtcod.console_put_char(con, self.x, self.y, ' ', libtcod.BKGND_NONE)
+        if OLD_SCHOOL_TILES:
+            if libtcod.map_is_in_fov(fov_map, self.x, self.y):
+                libtcod.console_put_char_ex(con, self.x, self.y, '.', libtcod.white, libtcod.light_blue)
+        else:
+            libtcod.console_put_char(con, self.x, self.y, ' ', libtcod.BKGND_NONE)
 
     def distance(self, x, y):
         # return the distance to some coordinates
@@ -731,17 +738,29 @@ def render_all():
                     # if it's not visible right now, the player can only see it if it's explored
                     if map[x][y].explored:
                         if wall:
-                            libtcod.console_set_back(con, x, y, color_dark_wall, libtcod.BKGND_SET )
+                            if OLD_SCHOOL_TILES:
+                                libtcod.console_put_char_ex(con, x, y, '#', libtcod.white, libtcod.dark_blue)
+                            else:
+                                libtcod.console_set_back(con, x, y, color_dark_wall, libtcod.BKGND_SET )
                         else:
-                            libtcod.console_set_back(con, x, y, color_dark_ground, libtcod.BKGND_SET )
+                            if OLD_SCHOOL_TILES:
+                                libtcod.console_put_char_ex(con, x, y, '.', libtcod.white, libtcod.dark_blue)
+                            else:
+                                libtcod.console_set_back(con, x, y, color_dark_ground, libtcod.BKGND_SET )
                 else:
                     # it's visible
                     # explore the tile since it is visible right now
                     map[x][y].explored = True
                     if wall:
-                        libtcod.console_set_back(con, x, y, color_light_wall, libtcod.BKGND_SET )
+                        if OLD_SCHOOL_TILES:
+                            libtcod.console_put_char_ex(con, x, y, '#', libtcod.white, libtcod.light_blue)
+                        else:
+                            libtcod.console_set_back(con, x, y, color_light_wall, libtcod.BKGND_SET )
                     else:
-                        libtcod.console_set_back(con, x, y, color_light_ground, libtcod.BKGND_SET )
+                        if OLD_SCHOOL_TILES:
+                            libtcod.console_put_char_ex(con, x, y, '.', libtcod.white, libtcod.light_blue)
+                        else:
+                            libtcod.console_set_back(con, x, y, color_light_ground, libtcod.BKGND_SET )
 
     # draw all objects in the list, except the player, we want it to
     # always appear over all the other objects! so it's drawn later.
