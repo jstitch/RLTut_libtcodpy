@@ -18,10 +18,8 @@ import libtcodpy as libtcod
 # ---
 
 # Extras
-OLD_SCHOOL_TILES = False
-REAL_TIME = False
-DIAGONAL_MOVEMENT = False
-MONSTER_RANDOM_MOVEMENT = False
+OLD_SCHOOL_TILES = True
+
 
 # Screen
 SCREEN_WIDTH = 80
@@ -70,12 +68,6 @@ INVENTORY_WIDTH = 50
 
 # Console refresh rate
 LIMIT_FPS = 20
-#if REAL_TIME:
-# number of frames to wait after moving/attacking
-RT_PLAYER_SPEED = 2
-RT_DEFAULT_SPEED = 8
-RT_DEFAULT_ATTACK_SPEED = 20
-#endif REAL_TIME
 
 
 # ---
@@ -97,8 +89,7 @@ class Object:
     # this is a generic object: the player, a monster, an item, the stairs...
     # it's always represented by a character on screen.
     def __init__(self, x, y, char, name, color, blocks=False,
-                 fighter=None, ai=None, item=None,
-                 speed=RT_DEFAULT_SPEED):
+                 fighter=None, ai=None, item=None):
         self.x = x
         self.y = y
         self.char = char
@@ -115,19 +106,12 @@ class Object:
         self.item = item
         if self.item: # let the item component know who owns it
             self.item.owner = self
-        # real-time
-        if REAL_TIME:
-            self.rt_speed = speed
-            self.rt_wait = 0
 
     def move(self, dx, dy):
         if not is_blocked(self.x + dx, self.y + dy):
             # move by the given amount
             self.x += dx
             self.y += dy
-
-            if REAL_TIME:
-                self.rt_wait = self.rt_speed
 
     def draw(self):
         if libtcod.map_is_in_fov(fov_map, self.x, self.y):
@@ -204,15 +188,12 @@ class Item:
 # An object than can attack or be attacked
 class Fighter:
     # combat-related properties and methods (monster, player, NPC)
-    def __init__(self, hp, defense, power, death_function=None, attack_speed=RT_DEFAULT_ATTACK_SPEED):
+    def __init__(self, hp, defense, power, death_function=None):
         self.max_hp = hp
         self.hp = hp
         self.defense = defense
         self.power = power
         self.death_function = death_function
-        # real-time
-        if REAL_TIME:
-            self.rt_attack_speed = attack_speed
 
     def take_damage(self, damage):
         # apply damage if possible
@@ -235,9 +216,6 @@ class Fighter:
         else:
             message(self.owner.name.capitalize() + ' attacks ' + target.name + ' but it has no effect!')
 
-        if REAL_TIME:
-            self.owner.rt_wait = self.rt_attack_speed
-
     def heal(self, amount):
         # heal by the given amount, without going over the maximum
         self.hp += amount
@@ -257,8 +235,6 @@ class BasicMonster:
             # close enough, attack! (if the player is still alive)
             elif player.fighter.hp > 0:
                 monster.fighter.attack(player)
-        elif MONSTER_RANDOM_MOVEMENT:
-            monster.move(libtcod.random_get_int(0, -1, 1), libtcod.random_get_int(0, -1, 1))
 
 # Confused monster AI
 class ConfusedMonster:
@@ -638,26 +614,14 @@ def handle_keys():
 
     # movement keys
     if game_state == 'playing':
-        if REAL_TIME:
-            if player.rt_wait > 0: # don't take a turn yet if still waiting
-                player.rt_wait -= 1
-                return
-        if key.vk == libtcod.KEY_UP or key.vk == libtcod.KEY_KP8:
+        if key.vk == libtcod.KEY_UP:
             player_move_or_attack(0, -1)
-        elif key.vk == libtcod.KEY_DOWN or key.vk == libtcod.KEY_KP2:
+        elif key.vk == libtcod.KEY_DOWN:
             player_move_or_attack(0, 1)
-        elif key.vk == libtcod.KEY_LEFT or key.vk == libtcod.KEY_KP4:
+        elif key.vk == libtcod.KEY_LEFT:
             player_move_or_attack(-1, 0)
-        elif key.vk == libtcod.KEY_RIGHT or key.vk == libtcod.KEY_KP6:
+        elif key.vk == libtcod.KEY_RIGHT:
             player_move_or_attack(1, 0)
-        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP7:
-            player_move_or_attack(-1, -1)
-        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP9:
-            player_move_or_attack(1, -1)
-        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP1:
-            player_move_or_attack(-1, 1)
-        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP3:
-            player_move_or_attack(1, 1)
         else:
             # test for other keys
             key_char = chr(key.c)
@@ -942,7 +906,7 @@ def new_game():
     # Player init
     # create object representing the player
     fighter_component = Fighter(hp=30, defense=2, power=5, death_function=player_death)
-    player = Object(0, 0, '@', 'player', libtcod.white, blocks=True, fighter=fighter_component, speed=RT_PLAYER_SPEED)
+    player = Object(0, 0, '@', 'player', libtcod.white, blocks=True, fighter=fighter_component)
 
     # Map
     # generate map (at this point it's not drawn to the screen)
@@ -985,13 +949,9 @@ def play_game():
             break
 
         # let monsters take their turn
-        if game_state == 'playing' and (REAL_TIME or player_action != 'didnt-take-turn'):
+        if game_state == 'playing' and player_action != 'didnt-take-turn':
             for object in objects:
                 if object.ai:
-                    if REAL_TIME:
-                        if object.rt_wait > 0: # don't take a turn yet if still waiting
-                            object.rt_wait -= 1
-                            continue
                     object.ai.take_turn()
 
 #  Save game
