@@ -27,6 +27,9 @@ you need according to your system and the instructions specified in
 the first day of the tutorial. Default version comes with files for
 Linux 32 bits version.
 
+Also change the first line in roguebasin.py to match your Python2.x
+installation
+
 
 Semi-official discussion thread at libtcod forum:
 
