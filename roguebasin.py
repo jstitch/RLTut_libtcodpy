@@ -18,10 +18,8 @@ import libtcodpy as libtcod
 # ---
 
 # Extras
-OLD_SCHOOL_TILES = False
-REAL_TIME = False
-DIAGONAL_MOVEMENT = False
-MONSTER_RANDOM_MOVEMENT = False
+REAL_TIME = True
+
 
 # Screen
 SCREEN_WIDTH = 80
@@ -137,11 +135,7 @@ class Object:
 
     def clear(self):
         # erase the character that represents this object
-        if OLD_SCHOOL_TILES:
-            if libtcod.map_is_in_fov(fov_map, self.x, self.y):
-                libtcod.console_put_char_ex(con, self.x, self.y, '.', libtcod.white, libtcod.light_blue)
-        else:
-            libtcod.console_put_char(con, self.x, self.y, ' ', libtcod.BKGND_NONE)
+        libtcod.console_put_char(con, self.x, self.y, ' ', libtcod.BKGND_NONE)
 
     def distance(self, x, y):
         # return the distance to some coordinates
@@ -257,8 +251,6 @@ class BasicMonster:
             # close enough, attack! (if the player is still alive)
             elif player.fighter.hp > 0:
                 monster.fighter.attack(player)
-        elif MONSTER_RANDOM_MOVEMENT:
-            monster.move(libtcod.random_get_int(0, -1, 1), libtcod.random_get_int(0, -1, 1))
 
 # Confused monster AI
 class ConfusedMonster:
@@ -642,22 +634,14 @@ def handle_keys():
             if player.rt_wait > 0: # don't take a turn yet if still waiting
                 player.rt_wait -= 1
                 return
-        if key.vk == libtcod.KEY_UP or key.vk == libtcod.KEY_KP8:
+        if key.vk == libtcod.KEY_UP:
             player_move_or_attack(0, -1)
-        elif key.vk == libtcod.KEY_DOWN or key.vk == libtcod.KEY_KP2:
+        elif key.vk == libtcod.KEY_DOWN:
             player_move_or_attack(0, 1)
-        elif key.vk == libtcod.KEY_LEFT or key.vk == libtcod.KEY_KP4:
+        elif key.vk == libtcod.KEY_LEFT:
             player_move_or_attack(-1, 0)
-        elif key.vk == libtcod.KEY_RIGHT or key.vk == libtcod.KEY_KP6:
+        elif key.vk == libtcod.KEY_RIGHT:
             player_move_or_attack(1, 0)
-        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP7:
-            player_move_or_attack(-1, -1)
-        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP9:
-            player_move_or_attack(1, -1)
-        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP1:
-            player_move_or_attack(-1, 1)
-        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP3:
-            player_move_or_attack(1, 1)
         else:
             # test for other keys
             key_char = chr(key.c)
@@ -775,29 +759,17 @@ def render_all():
                     # if it's not visible right now, the player can only see it if it's explored
                     if map[x][y].explored:
                         if wall:
-                            if OLD_SCHOOL_TILES:
-                                libtcod.console_put_char_ex(con, x, y, '#', libtcod.white, libtcod.dark_blue)
-                            else:
-                                libtcod.console_set_back(con, x, y, color_dark_wall, libtcod.BKGND_SET )
+                            libtcod.console_set_back(con, x, y, color_dark_wall, libtcod.BKGND_SET )
                         else:
-                            if OLD_SCHOOL_TILES:
-                                libtcod.console_put_char_ex(con, x, y, '.', libtcod.white, libtcod.dark_blue)
-                            else:
-                                libtcod.console_set_back(con, x, y, color_dark_ground, libtcod.BKGND_SET )
+                            libtcod.console_set_back(con, x, y, color_dark_ground, libtcod.BKGND_SET )
                 else:
                     # it's visible
                     # explore the tile since it is visible right now
                     map[x][y].explored = True
                     if wall:
-                        if OLD_SCHOOL_TILES:
-                            libtcod.console_put_char_ex(con, x, y, '#', libtcod.white, libtcod.light_blue)
-                        else:
-                            libtcod.console_set_back(con, x, y, color_light_wall, libtcod.BKGND_SET )
+                        libtcod.console_set_back(con, x, y, color_light_wall, libtcod.BKGND_SET )
                     else:
-                        if OLD_SCHOOL_TILES:
-                            libtcod.console_put_char_ex(con, x, y, '.', libtcod.white, libtcod.light_blue)
-                        else:
-                            libtcod.console_set_back(con, x, y, color_light_ground, libtcod.BKGND_SET )
+                        libtcod.console_set_back(con, x, y, color_light_ground, libtcod.BKGND_SET )
 
     # draw all objects in the list, except the player, we want it to
     # always appear over all the other objects! so it's drawn later.
