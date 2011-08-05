@@ -21,7 +21,7 @@ import libtcodpy as libtcod
 OLD_SCHOOL_TILES = False
 REAL_TIME = False
 DIAGONAL_MOVEMENT = False
-MONSTER_RANDOM_MOVEMENT = True
+MONSTER_RANDOM_MOVEMENT = False
 
 # Screen
 SCREEN_WIDTH = 80
