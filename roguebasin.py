@@ -596,7 +596,7 @@ def handle_keys():
 #    key = libtcod.console_check_for_keypress() # real-time
     key = libtcod.console_check_for_keypress(libtcod.KEY_PRESSED) # turn-based
 
-    if key.vk == libtcod.KEY_ENTER and libtcod.KEY_ALT:
+    if key.vk == libtcod.KEY_ENTER and key.lalt:
         # Alt+Enter: toggle fullscreen
         libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen())
 
@@ -794,6 +794,8 @@ def menu(header, options, width):
 
     # calculate the total height for the header (after auto-wrap) and one line per option
     header_height = libtcod.console_height_left_rect(con, 0, 0, width, SCREEN_HEIGHT, header)
+    if header == '':
+        header_height = 0
     height = len(options) + header_height
 
     # create an off-screen console that represents the menu's window
@@ -821,6 +823,9 @@ def menu(header, options, width):
     libtcod.console_flush()
     key = libtcod.console_wait_for_keypress(True)
 
+    if key.vk == libtcod.KEY_ENTER and key.lalt: # (special case) Alt+Enter: toggle fullscreen
+        libtcod.console_set_fullscreen(not libtcod.console_is_fullscreen())
+
     # convert the ASCII code to an index; if it corresponds to an option, return it
     index = key.c - ord('a')
     if index >= 0 and index < len(options): return index
@@ -838,6 +843,30 @@ def inventory_menu(header):
     # if an item was chosen, return it
     if index is None or len(inventory) == 0: return None
     return inventory[index].item
+
+#  Main menu
+def main_menu():
+    img = libtcod.image_load('menu_background.png')
+
+    while not libtcod.console_is_window_closed():
+        # show the background image, at twice the regular console resolution
+        libtcod.image_blit_2x(img, 0, 0, 0)
+
+        # show the game's title, and some credits!
+        libtcod.console_set_foreground_color(0, libtcod.light_yellow)
+        libtcod.console_print_center(0, SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 6, libtcod.BKGND_NONE, 'TOMBS OF THE ANCIENT KINGS')
+        libtcod.console_print_center(0, SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 4, libtcod.BKGND_NONE, 'By Jotaf')
+
+        # show options and wait for the player's choice
+        choice = menu('', ['Play a new game', 'Continue last game', 'Quit'], 24)
+
+        if choice == 0: # new game
+            new_game()
+            play_game()
+        elif choice == 1:
+            pass
+        elif choice == 2: # quit
+            break
 
 # INIT
 #  new game
@@ -873,6 +902,8 @@ def initialize_fov():
     global fov_recompute, fov_map, map
 
     fov_recompute = True
+
+    libtcod.console_clear(con) # unexplored areas start black (which is the default background color)
 
     # create the FOV map, according to the generated map
     fov_map = libtcod.map_new(MAP_WIDTH, MAP_HEIGHT)
@@ -928,5 +959,4 @@ panel = libtcod.console_new(SCREEN_WIDTH, PANEL_HEIGHT)
 # ---
 # MAIN
 # ---
-new_game()
-play_game()
+main_menu()
