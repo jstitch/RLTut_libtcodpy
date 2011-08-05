@@ -833,7 +833,7 @@ def menu(header, options, width):
     return None
 
 # Message box, a menu without options, just a message
-def message_box(text, width=50):
+def msgbox(text, width=50):
     menu(text, [], width) # use menu() as a sort of "message box"
 
 #  Inventory menu
@@ -872,7 +872,7 @@ def main_menu():
             try:
                 load_game()
             except:
-                message_box('\n No saved game to load.\n', 24)
+                msgbox('\n No saved game to load.\n', 24)
                 continue
             play_game()
         elif choice == 2: # quit
