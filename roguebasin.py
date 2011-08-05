@@ -20,6 +20,7 @@ import libtcodpy as libtcod
 # Extras
 OLD_SCHOOL_TILES = False
 REAL_TIME = False
+DIAGONAL_MOVEMENT = True
 
 # Screen
 SCREEN_WIDTH = 80
@@ -638,14 +639,22 @@ def handle_keys():
             if player.rt_wait > 0: # don't take a turn yet if still waiting
                 player.rt_wait -= 1
                 return
-        if key.vk == libtcod.KEY_UP:
+        if key.vk == libtcod.KEY_UP or key.vk == libtcod.KEY_KP8:
             player_move_or_attack(0, -1)
-        elif key.vk == libtcod.KEY_DOWN:
+        elif key.vk == libtcod.KEY_DOWN or key.vk == libtcod.KEY_KP2:
             player_move_or_attack(0, 1)
-        elif key.vk == libtcod.KEY_LEFT:
+        elif key.vk == libtcod.KEY_LEFT or key.vk == libtcod.KEY_KP4:
             player_move_or_attack(-1, 0)
-        elif key.vk == libtcod.KEY_RIGHT:
+        elif key.vk == libtcod.KEY_RIGHT or key.vk == libtcod.KEY_KP6:
             player_move_or_attack(1, 0)
+        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP7:
+            player_move_or_attack(-1, -1)
+        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP9:
+            player_move_or_attack(1, -1)
+        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP1:
+            player_move_or_attack(-1, 1)
+        elif DIAGONAL_MOVEMENT and key.vk == libtcod.KEY_KP3:
+            player_move_or_attack(1, 1)
         else:
             # test for other keys
             key_char = chr(key.c)
