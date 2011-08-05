@@ -20,7 +20,8 @@ import libtcodpy as libtcod
 # Extras
 OLD_SCHOOL_TILES = False
 REAL_TIME = False
-DIAGONAL_MOVEMENT = True
+DIAGONAL_MOVEMENT = False
+MONSTER_RANDOM_MOVEMENT = True
 
 # Screen
 SCREEN_WIDTH = 80
@@ -256,6 +257,8 @@ class BasicMonster:
             # close enough, attack! (if the player is still alive)
             elif player.fighter.hp > 0:
                 monster.fighter.attack(player)
+        elif MONSTER_RANDOM_MOVEMENT:
+            monster.move(libtcod.random_get_int(0, -1, 1), libtcod.random_get_int(0, -1, 1))
 
 # Confused monster AI
 class ConfusedMonster:
