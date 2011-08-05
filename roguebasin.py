@@ -19,7 +19,7 @@ import libtcodpy as libtcod
 
 # Extras
 OLD_SCHOOL_TILES = False
-REAL_TIME = True
+REAL_TIME = False
 
 # Screen
 SCREEN_WIDTH = 80
