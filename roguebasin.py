@@ -9,6 +9,7 @@
 
 import math
 import textwrap
+import shelve
 import libtcodpy as libtcod
 
 
@@ -831,6 +832,10 @@ def menu(header, options, width):
     if index >= 0 and index < len(options): return index
     return None
 
+# Message box, a menu without options, just a message
+def message_box(text, width=50):
+    menu(text, [], width) # use menu() as a sort of "message box"
+
 #  Inventory menu
 def inventory_menu(header):
     # show a menu with each item of the inventory as an option
@@ -863,13 +868,18 @@ def main_menu():
         if choice == 0: # new game
             new_game()
             play_game()
-        elif choice == 1:
-            pass
+        elif choice == 1: # load last game
+            try:
+                load_game()
+            except:
+                msgbox('\n No saved game to load.\n', 24)
+                continue
+            play_game()
         elif choice == 2: # quit
             break
 
-# INIT
-#  new game
+# MAIN MENU
+#  New game
 def new_game():
     global player, inventory, game_msgs, game_state
 
@@ -897,22 +907,7 @@ def new_game():
     # A warm welcoming message!
     message('Welcome stranger! Prepare to perish in the Tombs of the Ancient Kings.', libtcod.red)
 
-#  FOV init
-def initialize_fov():
-    global fov_recompute, fov_map, map
-
-    fov_recompute = True
-
-    libtcod.console_clear(con) # unexplored areas start black (which is the default background color)
-
-    # create the FOV map, according to the generated map
-    fov_map = libtcod.map_new(MAP_WIDTH, MAP_HEIGHT)
-    for y in range(MAP_HEIGHT):
-        for x in range(MAP_WIDTH):
-            libtcod.map_set_properties(fov_map, x, y, not map[x][y].blocked, not map[x][y].block_sight)
-
-# PLAY GAME
-# Play
+#  Play game
 def play_game():
     player_action = None
 
@@ -930,6 +925,7 @@ def play_game():
         # handle keys and exit game if needed
         player_action = handle_keys()
         if player_action == 'exit':
+            save_game()
             break
 
         # let monsters take their turn
@@ -937,6 +933,51 @@ def play_game():
             for object in objects:
                 if object.ai:
                     object.ai.take_turn()
+
+#  Save game
+def save_game():
+    global map, objects, player, inventory, game_msgs, game_state
+
+    # open a new empty shelve (possibly overwritting and old one) to write the game data
+    file = shelve.open('savegame', 'n')
+    file['map'] = map
+    file['objects'] = objects
+    file['player_index'] = objects.index(player) # index of player in objects list
+    file['inventory'] = inventory
+    file['game_msgs'] = game_msgs
+    file['game_state'] = game_state
+    file.close()
+
+#  Load game
+def load_game():
+    # open the previously saved shelve and load the game data
+    global map, objects, player, inventory, game_msgs, game_state
+
+    file = shelve.open('savegame', 'r')
+    map = file['map']
+    objects = file['objects']
+    player = objects[file['player_index']] # get index of player in objects list and access it
+    inventory = file['inventory']
+    game_msgs = file['game_msgs']
+    game_state = file['game_state']
+    file.close()
+
+    initialize_fov()
+
+# INIT
+#  FOV init
+def initialize_fov():
+    global fov_recompute, fov_map, map
+
+    fov_recompute = True
+
+    libtcod.console_clear(con) # unexplored areas start black (which is the default background color)
+
+    # create the FOV map, according to the generated map
+    fov_map = libtcod.map_new(MAP_WIDTH, MAP_HEIGHT)
+    for y in range(MAP_HEIGHT):
+        for x in range(MAP_WIDTH):
+            libtcod.map_set_properties(fov_map, x, y, not map[x][y].blocked, not map[x][y].block_sight)
 
 
 # ---
