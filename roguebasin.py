@@ -845,7 +845,7 @@ def menu(header, options, width):
     return None
 
 # Message box, a menu without options, just a message
-def message_box(text, width=50):
+def msgbox(text, width=50):
     menu(text, [], width) # use menu() as a sort of "message box"
 
 #  Inventory menu
