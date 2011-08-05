@@ -16,29 +16,27 @@ import libtcodpy as libtcod
 # CONSTS
 # ---
 
-# Game Constants
-
-# screen
+# Screen
 SCREEN_WIDTH = 80
 SCREEN_HEIGHT = 50
-
-# map
+# Map
 MAP_WIDTH = 80
 MAP_HEIGHT = 43
-
-# rooms
+#  Rooms
 ROOM_MAX_SIZE = 10
 ROOM_MIN_SIZE = 6
 MAX_ROOMS = 30
 
-# monsters
+# Game
+#  Monsters
 MAX_ROOM_MONSTERS = 3
-
-# items
+#  Items
 MAX_ROOM_ITEMS = 2
-
-# game
+#   Healing potion
 HEAL_AMOUNT = 4
+#   Lightning bolt scroll
+LIGHTNING_DAMAGE = 20
+LIGHTNING_RANGE = 5
 
 # FOV
 FOV_ALGO = 0 # default FOV algorithm
@@ -46,18 +44,18 @@ FOV_LIGHT_WALLS = True
 TORCH_RADIUS = 10
 
 # GUI
-# bottom panel
+#  Bottom panel
 BAR_WIDTH = 20
 PANEL_HEIGHT = 7
 PANEL_Y = SCREEN_HEIGHT - PANEL_HEIGHT
-# message bar
+#  Message bar
 MSG_X = BAR_WIDTH + 2
 MSG_WIDTH = SCREEN_WIDTH - BAR_WIDTH - 2
 MSG_HEIGHT = PANEL_HEIGHT - 1
-# inventory
+#  Inventory
 INVENTORY_WIDTH = 50
 
-# console refresh rate
+# Console refresh rate
 LIMIT_FPS = 20
 
 
@@ -250,7 +248,8 @@ class Rect:
 # ---
 
 # GAME
-# Handle player death
+#  Fighters
+#   Handle player death
 def player_death(player):
     # the game ended!
     global game_state
@@ -262,7 +261,7 @@ def player_death(player):
     player.char = '%'
     player.color = libtcod.dark_red
 
-# Handle monster death
+#   Handle monster death
 def monster_death(monster):
     # transform it into a nasty corpse! it doesn't block, can't be
     # attacked and doesn't move
@@ -275,7 +274,7 @@ def monster_death(monster):
     monster.name = 'remains of ' + monster.name
     monster.send_to_back()
 
-# The player takes an action such as move or attack
+#   The player takes an action such as move or attack
 def player_move_or_attack(dx, dy):
     global fov_recompute, player
 
@@ -297,7 +296,8 @@ def player_move_or_attack(dx, dy):
         player.move(dx, dy)
         fov_recompute = True
 
-# Handle cast heal
+#  Items
+#   Handle cast heal
 def cast_heal():
     # heal the player
     if player.fighter.hp == player.fighter.max_hp:
@@ -307,8 +307,21 @@ def cast_heal():
     message('Your wounds start to feel better!', libtcod.light_violet)
     player.fighter.heal(HEAL_AMOUNT)
 
+#   Handle cast lightning bolt
+def cast_lightning():
+    # find closest enemy (inside a maximum range) and damage it
+    monster = closest_monster(LIGHTNING_RANGE)
+    if monster is None: # no enemy found within maximum range
+        message('No enemy is close enough to strike.', libtcod.red)
+        return 'cancelled'
+
+    # zap it!
+    message('A lightning bolt strikes the ' + monster.name + ' with a loud thunder! The damage is '
+            + str(LIGHTNING_DAMAGE) + ' hit points.', libtcod.light_blue)
+    monster.fighter.take_damage(LIGHTNING_DAMAGE)
+
 # MAP & OBJECTS
-# Test if tile is blocked
+#  Test if tile is blocked
 def is_blocked(x, y):
     global map, objects
     
@@ -323,7 +336,25 @@ def is_blocked(x, y):
 
     return False
 
-# Place objects in some room
+#  Which is the closest monster in sight?
+def closest_monster(max_range):
+    global fov_map
+    
+    # find closest enemy, up to a maximum range, and in the player's FOV
+    closest_enemy = None
+    closest_dist = max_range + 1 # start with (slightly more than) maximum range
+
+    for object in objects:
+        if object.fighter and not object == player and libtcod.map_is_in_fov(fov_map, object.x, object.y):
+            # calculate distance between this object and the player
+            dist = player.distance_to(object)
+            if dist < closest_dist: # it's closer, so remember it
+                closest_enemy = object
+                closest_dist = dist
+
+    return closest_enemy
+
+#  Place objects in some room
 def place_objects(room):
     global objects
     
@@ -364,14 +395,21 @@ def place_objects(room):
 
         # only place it if the tile is not blocked
         if not is_blocked(x, y):
-            # create a healing potion
-            item_component = Item(use_function=cast_heal)
-            item = Object(x, y, '!', 'healing potion', libtcod.violet, item=item_component)
+            # chances: 70% healing potion, 30% lightning bolt scroll
+            choice = libtcod.random_get_int(0, 0, 100)
+            if choice < 70: # healing potion
+                # create a healing potion
+                item_component = Item(use_function=cast_heal)
+                item = Object(x, y, '!', 'healing potion', libtcod.violet, item=item_component)
+            else:
+                # create a lightning bolt scroll
+                item_component = Item(use_function=cast_lightning)
+                item = Object(x, y, '#', 'scroll of lightning bolt', libtcod.light_yellow, item=item_component)
 
             objects.append(item)
             item.send_to_back() # items appear below all other objects
 
-# Create map
+#  Create map
 def make_map():
     global map, player
 
@@ -439,7 +477,7 @@ def make_map():
             rooms.append(new_room)
             num_rooms += 1
 
-# Create a room in the map
+#  Create a room in the map
 def create_room(room):
     global map
 
@@ -449,7 +487,7 @@ def create_room(room):
             map[x][y].blocked = False
             map[x][y].block_sight = False
 
-# Create horizontal tunnel
+#  Create horizontal tunnel
 def create_h_tunnel(x1, x2, y):
     global map
 
@@ -457,7 +495,7 @@ def create_h_tunnel(x1, x2, y):
         map[x][y].blocked = False
         map[x][y].block_sight = False
 
-# Create vertical tunnel
+#  Create vertical tunnel
 def create_v_tunnel(y1, y2, x):
     global map
 
@@ -466,7 +504,7 @@ def create_v_tunnel(y1, y2, x):
         map[x][y].block_sight = False
 
 # INPUT
-# Handle key input
+#  Handle key input
 def handle_keys():
     global game_state
 
@@ -508,7 +546,7 @@ def handle_keys():
 
             return 'didnt-take-turn'
 
-# Mouse look command
+#  Mouse look command
 def get_names_under_mouse():
     global fov_map
     
@@ -524,7 +562,7 @@ def get_names_under_mouse():
     return names.capitalize()
 
 # GUI
-# Add a message
+#  Add a message
 def message(new_msg, color = libtcod.white):
     # split message if necessary, among multiple lines
     new_msg_lines = textwrap.wrap(new_msg, MSG_WIDTH)
@@ -537,7 +575,7 @@ def message(new_msg, color = libtcod.white):
         # add the new line as a tuple, with the text and the color
         game_msgs.append( (line, color) )
 
-# Displays a menu with selectable options
+#  Displays a menu with selectable options
 def menu(header, options, width):
     if len(options) > 26: raise ValueError('Cannot have a menu with more than 26 options.')
 
@@ -575,7 +613,7 @@ def menu(header, options, width):
     if index >= 0 and index < len(options): return index
     return None
 
-# Inventory menu
+#  Inventory menu
 def inventory_menu(header):
     # show a menu with each item of the inventory as an option
     if len(inventory) == 0:
@@ -589,7 +627,7 @@ def inventory_menu(header):
     return inventory[index].item
 
 # RENDERING
-# Render status bar
+#  Render status bar
 def render_bar(x, y, total_width, name, value, maximum, bar_color, back_color):
     global panel
     
@@ -610,7 +648,7 @@ def render_bar(x, y, total_width, name, value, maximum, bar_color, back_color):
     libtcod.console_print_center(panel, x + total_width / 2, y, libtcod.BKGND_NONE,
                                  name + ': ' + str(value) + '/' + str(maximum))
 
-# Render all
+#  Render all
 def render_all():
     global color_light_wall, color_light_ground
     global color_dark_wall, color_dark_ground
@@ -693,30 +731,30 @@ libtcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT, 'python/libtcod tutorial'
 # GLOBALS
 # ---
 
-# Consoles
-# Off-screen main console
+#  Consoles
+#   Off-screen main console
 con = libtcod.console_new(MAP_WIDTH, MAP_HEIGHT)
-# Bottom panel
+#   Bottom panel
 panel = libtcod.console_new(SCREEN_WIDTH, PANEL_HEIGHT)
 
-# Messages list
+#  Messages list
 game_msgs = [] # tuples of (message str, color)
 
-# Player init
+#  Player init
 fighter_component = Fighter(hp=30, defense=2, power=5, death_function=player_death)
 player = Object(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, '@', 'player', libtcod.white, blocks=True,
                 fighter=fighter_component)
 
-# Objects Array
+#  Objects Array
 objects = [player]
 
-# Inventory
+#  Inventory
 inventory = []
 
-# Map
+#  Map
 make_map()
 
-# FOV Map
+#  FOV Map
 fov_map = libtcod.map_new(MAP_WIDTH, MAP_HEIGHT)
 for y in range(MAP_HEIGHT):
     for x in range(MAP_WIDTH):
@@ -724,7 +762,7 @@ for y in range(MAP_HEIGHT):
 
 fov_recompute = True
 
-# Game states
+#  Game states
 game_state = 'playing'
 player_action = None
 
@@ -733,10 +771,10 @@ player_action = None
 # MAIN
 # ---
 
-# a warm welcoming message!
+#  A warm welcoming message!
 message('Welcome stranger! Prepare to perish in the Tombs of the Ancient Kings.', libtcod.red)
 
-# main loop
+#  Main loop
 while not libtcod.console_is_window_closed():
     # draw
     render_all()
