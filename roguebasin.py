@@ -872,7 +872,7 @@ def main_menu():
             try:
                 load_game()
             except:
-                msgbox('\n No saved game to load.\n', 24)
+                message_box('\n No saved game to load.\n', 24)
                 continue
             play_game()
         elif choice == 2: # quit
