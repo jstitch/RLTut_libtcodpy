@@ -10,6 +10,11 @@ Each git commit goes along with some milestone reached in the tutorial
 too). Therefore you can log and diff so as to look at the evolution of
 the game along with the tutorial.
 
+There are tag marks for the code at the end of each lesson too.
+
+Also, there are some branches, which include modifications to the
+code, including the extras at the tutorial
+
 
 REQUIREMENTS
 ------------
