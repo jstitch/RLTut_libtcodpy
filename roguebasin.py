@@ -84,7 +84,7 @@ color_light_ground = libtcod.Color(200, 180, 50)
 class Object:
     # this is a generic object: the player, a monster, an item, the stairs...
     # it's always represented by a character on screen.
-    def __init__(self, x, y, char, name, color, blocks=False,
+    def __init__(self, x, y, char, name, color, blocks=False, always_visible=False,
                  fighter=None, ai=None, item=None):
         self.x = x
         self.y = y
@@ -92,6 +92,7 @@ class Object:
         self.name = name
         self.color = color
         self.blocks = blocks
+        self.always_visible = always_visible
         # components
         self.fighter = fighter
         if self.fighter: # let the figther component know who owns it
@@ -110,7 +111,7 @@ class Object:
             self.y += dy
 
     def draw(self):
-        if libtcod.map_is_in_fov(fov_map, self.x, self.y):
+        if libtcod.map_is_in_fov(fov_map, self.x, self.y) or (self.always_visible and map[self.x][self.y].explored):
             # set the color and then draw the character that represents this object at its position
             libtcod.console_set_foreground_color(con, self.color)
             libtcod.console_put_char(con, self.x, self.y, self.char, libtcod.BKGND_NONE)
@@ -493,7 +494,7 @@ def place_objects(room):
 
 #  Create map
 def make_map():
-    global map, player, objects
+    global map, player, objects, stairs
 
     # fill map with "blocked" tiles
     map = [[ Tile(True)
@@ -563,6 +564,10 @@ def make_map():
             rooms.append(new_room)
             num_rooms += 1
 
+    # Create stairs at the center of the last room
+    stairs = Object(new_x, new_y, '<', 'stairs', libtcod.white, always_visible=True)
+    objects.append(stairs)
+
 #  Create a room in the map
 def create_room(room):
     global map
@@ -589,10 +594,22 @@ def create_v_tunnel(y1, y2, x):
         map[x][y].blocked = False
         map[x][y].block_sight = False
 
+#  Advance to the next level
+def next_level():
+    global player, dungeon_level
+
+    message('You take a moment to rest, and recover your strength.', libtcod.light_violet)
+    player.fighter.heal(player.fighter.max_hp / 2) # heal the player by 50%
+
+    message('After a rare moment of peace, you descend deeper into the heart of the dungeon...', libtcod.red)
+    dungeon_level += 1
+    make_map() # create a fresh new level
+    initialize_fov()
+
 # INPUT
 #  Handle key input
 def handle_keys():
-    global game_state
+    global game_state, player, stairs
 
 #    key = libtcod.console_check_for_keypress() # real-time
     key = libtcod.console_check_for_keypress(libtcod.KEY_PRESSED) # turn-based
@@ -634,6 +651,11 @@ def handle_keys():
                 chosen_item = inventory_menu('Press the key next to an item to use it, or any other to cancel.\n')
                 if chosen_item is not None:
                     chosen_item.use()
+
+            if key_char == '<':
+                # go down stairs, if the player is on them
+                if stairs.x == player.x and stairs.y == player.y:
+                    next_level()
 
             return 'didnt-take-turn'
 
@@ -713,7 +735,7 @@ def render_all():
     global color_light_wall, color_light_ground
     global color_dark_wall, color_dark_ground
     global fov_map, fov_recompute
-    global player, map
+    global player, map, dungeon_level
 
     # draw the map
     if fov_recompute:
@@ -767,6 +789,9 @@ def render_all():
     # show the player's stats
     render_bar(1, 1, BAR_WIDTH, 'HP', player.fighter.hp, player.fighter.max_hp,
                libtcod.light_red, libtcod.dark_red)
+
+    # dungeon level
+    libtcod.console_print_left(panel, 1, 3, libtcod.BKGND_NONE, 'Dungeon level ' + str(dungeon_level))
 
     # mouse look command
     libtcod.console_set_foreground_color(panel, libtcod.light_gray)
@@ -881,7 +906,7 @@ def main_menu():
 # MAIN MENU
 #  New game
 def new_game():
-    global player, inventory, game_msgs, game_state
+    global player, inventory, dungeon_level, game_msgs, game_state
 
     # Player init
     # create object representing the player
@@ -889,6 +914,8 @@ def new_game():
     player = Object(0, 0, '@', 'player', libtcod.white, blocks=True, fighter=fighter_component)
 
     # Map
+    # dungeon level
+    dungeon_level = 1
     # generate map (at this point it's not drawn to the screen)
     make_map()
     # FOV Map
@@ -936,7 +963,7 @@ def play_game():
 
 #  Save game
 def save_game():
-    global map, objects, player, inventory, game_msgs, game_state
+    global map, objects, player, inventory, game_msgs, game_state, dungeon_level, stairs
 
     # open a new empty shelve (possibly overwritting and old one) to write the game data
     file = shelve.open('savegame', 'n')
@@ -946,12 +973,14 @@ def save_game():
     file['inventory'] = inventory
     file['game_msgs'] = game_msgs
     file['game_state'] = game_state
+    file['stairs_index'] = objects.index(stairs)
+    file['dungeon_level'] = dungeon_level
     file.close()
 
 #  Load game
 def load_game():
     # open the previously saved shelve and load the game data
-    global map, objects, player, inventory, game_msgs, game_state
+    global map, objects, player, inventory, game_msgs, game_state, stairs, dungeon_level
 
     file = shelve.open('savegame', 'r')
     map = file['map']
@@ -960,6 +989,8 @@ def load_game():
     inventory = file['inventory']
     game_msgs = file['game_msgs']
     game_state = file['game_state']
+    stairs = objects[file['stairs_index']]
+    dungeon_level = file['dungeon_level']
     file.close()
 
     initialize_fov()
