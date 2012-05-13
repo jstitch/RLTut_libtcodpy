@@ -44,6 +44,9 @@ CONFUSE_RANGE = 8
 #   Fireball
 FIREBALL_RADIUS = 3
 FIREBALL_DAMAGE = 12
+# Experience and level-ups
+LEVEL_UP_BASE = 200
+LEVEL_UP_FACTOR = 150
 
 # FOV
 FOV_ALGO = 0 # default FOV algorithm
@@ -61,6 +64,9 @@ MSG_WIDTH = SCREEN_WIDTH - BAR_WIDTH - 2
 MSG_HEIGHT = PANEL_HEIGHT - 1
 #  Inventory
 INVENTORY_WIDTH = 50
+# Levels
+LEVEL_SCREEN_WIDTH = 40
+CHARACTER_SCREEN_WIDTH = 30
 
 # Console refresh rate
 LIMIT_FPS = 20
@@ -181,14 +187,17 @@ class Item:
 # An object than can attack or be attacked
 class Fighter:
     # combat-related properties and methods (monster, player, NPC)
-    def __init__(self, hp, defense, power, death_function=None):
+    def __init__(self, hp, defense, power, xp, death_function=None):
         self.max_hp = hp
         self.hp = hp
         self.defense = defense
         self.power = power
+        self.xp = xp
         self.death_function = death_function
 
     def take_damage(self, damage):
+        global player
+
         # apply damage if possible
         if damage > 0:
             self.hp -= damage
@@ -197,6 +206,9 @@ class Fighter:
             function = self.death_function
             if function is not None:
                 function(self.owner)
+        # yield experience to the player
+        if self.owner != player:
+            player.fighter.xp += self.xp
 
     def attack(self, target):
         # a simple formula for attack damage
@@ -310,7 +322,7 @@ def player_death(player):
 def monster_death(monster):
     # transform it into a nasty corpse! it doesn't block, can't be
     # attacked and doesn't move
-    message(monster.name.capitalize() + ' is dead!', libtcod.orange)
+    message('The ' + monster.name + ' is dead! You gain ' + str(monster.fighter.xp) + ' experience points.', libtcod.orange)
     monster.char = '%'
     monster.color = libtcod.dark_red
     monster.blocks = False
@@ -340,6 +352,34 @@ def player_move_or_attack(dx, dy):
     else:
         player.move(dx, dy)
         fov_recompute = True
+
+#  See if the player's experience is enough to level-up
+def check_level_up():
+    global player
+
+    level_up_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+    # it is! level up
+    if player.fighter.xp >= level_up_xp:
+        player.level += 1
+        player.fighter.xp -= level_up_xp
+        message('Your battle skills grow stronger! You reached level ' + str(player.level) + '!', libtcod.yellow)
+
+        choice = None
+        # keep asking until a choice is made
+        while choice == None:
+            choice = menu('Level up! Choose a stat to raise.\n',
+                          ['Constitution (+20 HP from ' + str(player.fighter.max_hp) + ')',
+                           'Strength (+1 attack, from ' + str(player.fighter.power) + ')',
+                           'Agility (+1 defense, from ' + str(player.fighter.defense) + ')'],
+                          LEVEL_SCREEN_WIDTH)
+
+        if choice == 0:
+            player.fighter.max_hp += 20
+            player.fighter.hp += 20
+        elif choice == 1:
+            player.fighter.power += 1
+        elif choice == 2:
+            player.fighter.defense += 1
 
 #  Items
 #   Handle cast heal
@@ -447,13 +487,13 @@ def place_objects(room):
             choice = libtcod.random_get_int(0, 0, 100)
             if choice < 80: # orc
                 # create an orc
-                fighter_component = Fighter(hp=10, defense=0, power=3, death_function=monster_death)
+                fighter_component = Fighter(hp=10, defense=0, power=3, xp=35, death_function=monster_death)
                 ai_component = BasicMonster()
                 monster = Object(x, y, 'o', 'orc', libtcod.desaturated_green,
                                  blocks=True, fighter=fighter_component, ai=ai_component)
             else:
                 # create a troll
-                fighter_component = Fighter(hp=16, defense=1, power=4, death_function=monster_death)
+                fighter_component = Fighter(hp=16, defense=1, power=4, xp=100, death_function=monster_death)
                 ai_component = BasicMonster()
                 monster = Object(x, y, 'T', 'troll', libtcod.darker_green,
                                  blocks=True, fighter=fighter_component, ai=ai_component)
@@ -651,11 +691,17 @@ def handle_keys():
                 chosen_item = inventory_menu('Press the key next to an item to use it, or any other to cancel.\n')
                 if chosen_item is not None:
                     chosen_item.use()
-
             if key_char == '<':
                 # go down stairs, if the player is on them
                 if stairs.x == player.x and stairs.y == player.y:
                     next_level()
+            if key_char == 'c':
+                # show character information
+                level_up_xp = LEVEL_UP_BASE + player.level * LEVEL_UP_FACTOR
+                msgbox('Character Information\n\nLevel: ' + str(player.level) + '\nExperience: ' + str(player.fighter.xp) +
+                       '\nExperience to level up: ' + str(level_up_xp) + '\n\nMaximum HP: ' + str(player.fighter.max_hp) +
+                       '\nAttack: ' + str(player.fighter.power) + '\nDefense: ' + str(player.fighter.defense),
+                       CHARACTER_SCREEN_WIDTH)
 
             return 'didnt-take-turn'
 
@@ -735,7 +781,7 @@ def render_all():
     global color_light_wall, color_light_ground
     global color_dark_wall, color_dark_ground
     global fov_map, fov_recompute
-    global player, map, dungeon_level
+    global player, map, dungeon_level, stairs
 
     # draw the map
     if fov_recompute:
@@ -910,8 +956,9 @@ def new_game():
 
     # Player init
     # create object representing the player
-    fighter_component = Fighter(hp=30, defense=2, power=5, death_function=player_death)
+    fighter_component = Fighter(hp=30, defense=2, power=5, xp=0, death_function=player_death)
     player = Object(0, 0, '@', 'player', libtcod.white, blocks=True, fighter=fighter_component)
+    player.level = 1
 
     # Map
     # dungeon level
@@ -944,6 +991,9 @@ def play_game():
         render_all()
         # flush data to screen
         libtcod.console_flush()
+
+        # check level up
+        check_level_up()
 
         # clear all objects
         for object in objects:
