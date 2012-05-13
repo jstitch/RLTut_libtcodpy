@@ -606,7 +606,7 @@ def make_map():
 
     # Create stairs at the center of the last room
     stairs = Object(new_x, new_y, '<', 'stairs', libtcod.white, always_visible=True)
-    objects.append(stairs)
+    objects.insert(0, stairs)
 
 #  Create a room in the map
 def create_room(room):
