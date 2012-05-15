@@ -31,8 +31,12 @@ MAX_ROOMS = 30
 # Game
 #  Monsters
 MAX_ROOM_MONSTERS = 3
+#   chances: 80% orc, 20% troll
+monster_chances = {'orc': 80, 'troll': 20}
 #  Items
 MAX_ROOM_ITEMS = 2
+#   chances: 70% healing potion, 10% lightning bolt scroll, 10% fireball scroll, 10% confusion scroll
+item_chances = {'heal': 70, 'lightning': 10, 'fireball': 10, 'confuse': 10}
 #   Healing potion
 HEAL_AMOUNT = 4
 #   Lightning bolt scroll
@@ -305,6 +309,30 @@ class Rect:
 # ---
 
 # GAME
+#  Util
+#   Choose one option from list of chances, returning its index
+def random_choice_index(chances):
+    # the dice will land on some number between 1 and the sum of the chances
+    dice = libtcod.random_get_int(0, 1, sum(chances))
+
+    # go through all chances, keeping the sum so far
+    running_sum = 0
+    choice = 0
+    for w in chances:
+        running_sum += w
+
+        # see if the dice landed in the part that corresponds to this choice
+        if dice <= running_sum:
+            return choice
+        choice += 1
+
+#   Choose one option from dictionary of chances, returning its key
+def random_choice(chances_dict):
+    chances = chances_dict.values()
+    strings = chances_dict.keys()
+
+    return strings[random_choice_index(chances)]
+
 #  Fighters
 #   Handle player death
 def player_death(player):
@@ -483,15 +511,14 @@ def place_objects(room):
 
         # only place it if the tile is not blocked
         if not is_blocked(x, y):
-            # chances: 80% orc, 20% troll
-            choice = libtcod.random_get_int(0, 0, 100)
-            if choice < 80: # orc
+            choice = random_choice(monster_chances)
+            if choice == 'orc':
                 # create an orc
                 fighter_component = Fighter(hp=10, defense=0, power=3, xp=35, death_function=monster_death)
                 ai_component = BasicMonster()
                 monster = Object(x, y, 'o', 'orc', libtcod.desaturated_green,
                                  blocks=True, fighter=fighter_component, ai=ai_component)
-            else:
+            elif choice == 'troll':
                 # create a troll
                 fighter_component = Fighter(hp=16, defense=1, power=4, xp=100, death_function=monster_death)
                 ai_component = BasicMonster()
@@ -510,21 +537,20 @@ def place_objects(room):
 
         # only place it if the tile is not blocked
         if not is_blocked(x, y):
-            # chances: 70% healing potion, 10% lightning bolt scroll, 10% fireball scroll, 10% confusion scroll
-            choice = libtcod.random_get_int(0, 0, 100)
-            if choice < 70: # healing potion
+            choice = random_choice(item_chances)
+            if choice == 'heal': # healing potion
                 # create a healing potion
                 item_component = Item(use_function=cast_heal)
                 item = Object(x, y, '!', 'healing potion', libtcod.violet, item=item_component)
-            elif choice < 70+10:
+            elif choice == 'lightning':
                 # create a lightning bolt scroll
                 item_component = Item(use_function=cast_lightning)
                 item = Object(x, y, '#', 'scroll of lightning bolt', libtcod.light_yellow, item=item_component)
-            elif choice < 70+10+10:
+            elif choice == 'fireball':
                 # create a fireball scroll
                 item_component = Item(use_function=cast_fireball)
                 item = Object(x, y, '#', 'scroll of fireball', libtcod.light_yellow, item=item_component)
-            else:
+            elif choice == 'confuse':
                 # create a confuse scroll
                 item_component = Item(use_function=cast_confuse)
                 item = Object(x, y, '#', 'scroll of confusion', libtcod.light_yellow, item=item_component)
